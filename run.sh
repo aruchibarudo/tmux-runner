@@ -7,7 +7,7 @@ TMUX_SESSION=tcpdump
 y=0
 
 
-DEFAULT_IF="ip ro show match default | sed -nr \"s/.*dev ([^ ]+).*/\1/\""
+DEFAULT_IF="ip ro show match default | head -1 | sed -nr \"s/.*dev ([^ ]+).*/\1/p\""
 CMD="ssh"
 MY_IP=$(ip ro show match default | sed -nr "s/.*src ([^ ]+).*/\1/p")
 REMOTE_CMD="'tcpdump -n -i \$(${DEFAULT_IF}) -w - -f \"not host ${MY_IP}\"'"
