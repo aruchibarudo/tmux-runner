@@ -18,7 +18,7 @@ cat << _EOF_ > ${RUN_FILE}
 DEFAULT_IF=\$(ip -o ro get 1 | sed -nr "s/.*dev ([^ ]+).*/\1/p")
 SELF_IP=\$(ip -o ro get 1 | sed -nr "s/.*src ([^ ]+).*/\1/p")
 FILTER="not host ${MY_IP} and host \${SELF_IP}"
-tcpdump -n -i \${DEFAULT_IF} -w - "\${FILTER}"
+tcpdump -n -i \${DEFAULT_IF} -U -w - "\${FILTER}"
 _EOF_
 
 tmux has-session -t ${TMUX_SESSION} 2>/dev/null
