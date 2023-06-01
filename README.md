@@ -9,8 +9,9 @@
 * Создается сессия `tmux` (по умолчанию `tcpdump`)
 * Список хостов для подключения берется из файла (один хост на строку), указанного первым параметром (по умолчанию `list.txt`).
 * Создаются окна максимумом с 4-мя панелями (общее кол-во панелей равно кол-ву хостов).
-* В каждой панеле подключается к хосту через `ssh` и запускает `tcpdump`. Собирается весь трафик, кроме хоста,с котрого идет подключение.
-* Трафик складывается в файл `hostname.pcap` в директорию указанную вторым параметром (по умолчанию `./dump`).
+* В каждой панеле подключается к хосту через `ssh` и запускает `tcpdump`. Собирается трафик к хосту и от него, исключая хост, с которого идет подключение.
+* Трафик складывается в файл `hostname.pcap` в директорию указанную вторым параметром (по умолчанию `./dump`) в поддиректорию указанную третьм параметром (по умолчанию текущие дата и время).
+* В консолях выводятся заголовки пакетов.
 ## Как работать в tmux
 * В рамках одного окна весь ввод идет на все панели сразу, т.е. если нажать `ctrl+c`, то это прервет сбор трафика на всех панелях/хостах в текущем окне.
 * Переключение между окнами `ctrl+b n`
@@ -30,18 +31,41 @@ spb99tpagent04
 $ ./run.sh
 Proccess spb99tpagent01 spb99tpagent02 spb99tpagent03 spb99tpagent04 in window 0
 arranging in: tiled
-run ssh spb99tpagent01 'tcpdump -n -i $(ip ro show match default | head -1 | sed -nr "s/.*dev ([^ ]+).*/\1/p") -w - -f "not host 10.50.56.230"' > ./dump/spb99tpagent01.pcap in pane 0.0
-run ssh spb99tpagent02 'tcpdump -n -i $(ip ro show match default | head -1 | sed -nr "s/.*dev ([^ ]+).*/\1/p") -w - -f "not host 10.50.56.230"' > ./dump/spb99tpagent02.pcap in pane 0.1
-run ssh spb99tpagent03 'tcpdump -n -i $(ip ro show match default | head -1 | sed -nr "s/.*dev ([^ ]+).*/\1/p") -w - -f "not host 10.50.56.230"' > ./dump/spb99tpagent03.pcap in pane 0.2
-run ssh spb99tpagent04 'tcpdump -n -i $(ip ro show match default | head -1 | sed -nr "s/.*dev ([^ ]+).*/\1/p") -w - -f "not host 10.50.56.230"' > ./dump/spb99tpagent04.pcap in pane 0.3
+run ssh spb99tpagent01 bash /tmp/run.sh | tee ./dump/2023-06-01T16-52-55/spb99tpagent01.pcap | tcpdump -r - in pane 0.0
+run ssh spb99tpagent02 bash /tmp/run.sh | tee ./dump/2023-06-01T16-52-55/spb99tpagent02.pcap | tcpdump -r - in pane 0.1
+run ssh spb99tpagent03 bash /tmp/run.sh | tee ./dump/2023-06-01T16-52-55/spb99tpagent03.pcap | tcpdump -r - in pane 0.2
+run ssh spb99tpagent04 bash /tmp/run.sh | tee ./dump/2023-06-01T16-52-55/spb99tpagent04.pcap | tcpdump -r - in pane 0.3
 set option: synchronize-panes -> on
 [exited]
-$ ls -lnh dump
-total 68K
--rw-rw-r--. 1 1000 1000 24K Jun  1 11:09 spb99tpagent01.pcap
--rw-rw-r--. 1 1000 1000 16K Jun  1 11:09 spb99tpagent02.pcap
--rw-rw-r--. 1 1000 1000 12K Jun  1 11:09 spb99tpagent03.pcap
--rw-rw-r--. 1 1000 1000 16K Jun  1 11:07 spb99tpagent04.pcap
+$ tree dump/
+dump/
+`-- 2023-06-01T16-52-55
+    |-- spb99tpagent01.pcap
+    |-- spb99tpagent02.pcap
+    |-- spb99tpagent03.pcap
+    `-- spb99tpagent04.pcap
 
+1 directory, 4 files
+```
+## Запуск с параметрами
+```
+$ ./run.sh list.txt TP-10943 noservice
+Proccess spb99tpagent01 spb99tpagent02 spb99tpagent03 spb99tpagent04 in window 0
+arranging in: tiled
+run ssh spb99tpagent01 bash /tmp/run.sh | tee ./TP-10943/noservice/spb99tpagent01.pcap | tcpdump -r - in pane 0.0
+run ssh spb99tpagent02 bash /tmp/run.sh | tee ./TP-10943/noservice/spb99tpagent02.pcap | tcpdump -r - in pane 0.1
+run ssh spb99tpagent03 bash /tmp/run.sh | tee ./TP-10943/noservice/spb99tpagent03.pcap | tcpdump -r - in pane 0.2
+run ssh spb99tpagent04 bash /tmp/run.sh | tee ./TP-10943/noservice/spb99tpagent04.pcap | tcpdump -r - in pane 0.3
+set option: synchronize-panes -> on
+[exited]
+[techpark@spb99tpman01 dumper]$ tree TP-10943/
+TP-10943/
+`-- noservice
+    |-- spb99tpagent01.pcap
+    |-- spb99tpagent02.pcap
+    |-- spb99tpagent03.pcap
+    `-- spb99tpagent04.pcap
+
+1 directory, 4 files
 ```
 ![screenhost tmux with four panes](docs/tmux4.png "Экран после успешного запуска")
