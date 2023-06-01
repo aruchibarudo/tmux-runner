@@ -3,14 +3,23 @@ OLDIFS=${IFS}
 HOSTS_FILE=${1:-list.txt}
 OUTPUT_DIR=${2:-dump}
 HOSTS_LIST=($(cat ${HOSTS_FILE}))
+DATETIME=$(date +%FT%H-%M-%S)
+SUBDIR=${3:-${DATETIME}}
 TMUX_SESSION=tcpdump
+
 y=0
 
 
-DEFAULT_IF="ip ro show match default | head -1 | sed -nr \"s/.*dev ([^ ]+).*/\1/p\""
 CMD="ssh"
-MY_IP=$(ip ro show match default | sed -nr "s/.*src ([^ ]+).*/\1/p")
-REMOTE_CMD="'tcpdump -n -i \$(${DEFAULT_IF}) -w - -f \"not host ${MY_IP}\"'"
+MY_IP=$(ip -o ro get 1 | sed -nr "s/.*src ([^ ]+).*/\1/p")
+
+RUN_FILE=/tmp/run.sh
+cat << _EOF_ > ${RUN_FILE}
+DEFAULT_IF=\$(ip -o ro get 1 | sed -nr "s/.*dev ([^ ]+).*/\1/p")
+SELF_IP=\$(ip -o ro get 1 | sed -nr "s/.*src ([^ ]+).*/\1/p")
+FILTER="not host ${MY_IP} and host \${SELF_IP}"
+tcpdump -n -i \${DEFAULT_IF} -w - "\${FILTER}"
+_EOF_
 
 tmux has-session -t ${TMUX_SESSION} 2>/dev/null
 
@@ -21,7 +30,7 @@ then
   exit 1
 fi
 
-mkdir -p ${OUTPUT_DIR}
+mkdir -p ${OUTPUT_DIR}/${SUBDIR}
 
 tmux new-session -s ${TMUX_SESSION} -d
 
@@ -50,8 +59,9 @@ do
     TARGET_HOST=${CHUNK[${p}]}
     OUTPUT_FILE="${TARGET_HOST}.pcap"
     sleep 0.5
-    RUN_CMD="${CMD} ${TARGET_HOST} ${REMOTE_CMD} > ./${OUTPUT_DIR}/${OUTPUT_FILE}"
+    RUN_CMD="${CMD} ${TARGET_HOST} bash ${RUN_FILE} | tee ./${OUTPUT_DIR}/${SUBDIR}/${OUTPUT_FILE} | tcpdump -r -"
     echo run ${RUN_CMD} in pane ${y}.${p}
+    tmux send-keys -t ${TMUX_SESSION}:${y}.${p} "scp ${RUN_FILE} ${TARGET_HOST}:${RUN_FILE}" Enter
     tmux send-keys -t ${TMUX_SESSION}:${y}.${p} "${RUN_CMD}" Enter
   done
 
